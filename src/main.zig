@@ -1,24 +1,49 @@
 const std = @import("std");
+const File = std.fs.File;
+
+// header constants
+const SAMPLE_RATE = 44100;
+const CHANNELS = 1;
+const HEADER_SIZE = 36;
+const SUBCHUNK1_SIZE = 16;
+const AUDIO_FORMAT = 1;
+const BIT_DEPTH = 8;
+const BYTE_SIZE = 8;
+const PI = std.math.pi;
+
+// audio parameters
+const TIME = 5;
+const FREQ = 440.0;
 
 pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+    const cwd = std.fs.cwd();
+    var file = try cwd.createFile("sine.wav", .{});
+    defer file.close();
 
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
-
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
-
-    try bw.flush(); // don't forget to flush!
+    try writeHeaders(TIME, file.writer());
+    try renderSineWave(TIME, file.writer(), FREQ);
 }
 
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
+fn writeHeaders(seconds: u32, file: File.Writer) !void {
+    const numsamples: u32 = SAMPLE_RATE * seconds;
+    try file.writeAll("RIFF");
+    try file.writeIntLittle(u32, HEADER_SIZE + numsamples);
+    try file.writeAll("WAVEfmt ");
+    try file.writeIntLittle(u32, SUBCHUNK1_SIZE);
+    try file.writeIntLittle(u16, AUDIO_FORMAT);
+    try file.writeIntLittle(u16, CHANNELS);
+    try file.writeIntLittle(u32, SAMPLE_RATE);
+    try file.writeIntLittle(u32, SAMPLE_RATE * CHANNELS * (BIT_DEPTH / BYTE_SIZE));
+    try file.writeIntLittle(u16, (CHANNELS * (BIT_DEPTH / BYTE_SIZE)));
+    try file.writeIntLittle(u16, BIT_DEPTH);
+    try file.writeAll("data");
+    try file.writeIntLittle(u32, numsamples * CHANNELS * (BIT_DEPTH / BYTE_SIZE));
+}
+
+fn renderSineWave(seconds: u32, file: File.Writer, freq: f64) !void {
+    var idx: u32 = 0;
+    while (idx < seconds * SAMPLE_RATE) : (idx += 1) {
+        const sample = ((@sin((freq * @intToFloat(f64, idx) * (2.0 * PI / @as(comptime_float, SAMPLE_RATE)))) + 1.0) / 2.0) * 255.0;
+        try file.writeByte(@floatToInt(u8, sample));
+    }
 }
