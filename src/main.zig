@@ -2,11 +2,11 @@ const std = @import("std");
 const File = std.fs.File;
 
 // header constants
-const SAMPLE_RATE = 44100;
-const CHANNELS = 1;
 const HEADER_SIZE = 36;
-const SUBCHUNK1_SIZE = 16;
 const AUDIO_FORMAT = 1;
+const NUM_CHANNELS = 1;
+const SAMPLE_RATE = 44100;
+const SUBCHUNK1_SIZE = 16;
 const BIT_DEPTH = 8;
 const BYTE_SIZE = 8;
 const PI = std.math.pi;
@@ -25,19 +25,22 @@ pub fn main() !void {
 }
 
 fn writeHeaders(seconds: u32, file: File.Writer) !void {
-    const numsamples: u32 = SAMPLE_RATE * seconds;
     try file.writeAll("RIFF");
+
+    const numsamples: u32 = SAMPLE_RATE * seconds;
     try file.writeIntLittle(u32, HEADER_SIZE + numsamples);
+
     try file.writeAll("WAVEfmt ");
     try file.writeIntLittle(u32, SUBCHUNK1_SIZE);
     try file.writeIntLittle(u16, AUDIO_FORMAT);
-    try file.writeIntLittle(u16, CHANNELS);
+    try file.writeIntLittle(u16, NUM_CHANNELS);
     try file.writeIntLittle(u32, SAMPLE_RATE);
-    try file.writeIntLittle(u32, SAMPLE_RATE * CHANNELS * (BIT_DEPTH / BYTE_SIZE));
-    try file.writeIntLittle(u16, (CHANNELS * (BIT_DEPTH / BYTE_SIZE)));
+    try file.writeIntLittle(u32, SAMPLE_RATE * NUM_CHANNELS * (BIT_DEPTH / BYTE_SIZE));
+    try file.writeIntLittle(u16, (NUM_CHANNELS * (BIT_DEPTH / BYTE_SIZE)));
     try file.writeIntLittle(u16, BIT_DEPTH);
+
     try file.writeAll("data");
-    try file.writeIntLittle(u32, numsamples * CHANNELS * (BIT_DEPTH / BYTE_SIZE));
+    try file.writeIntLittle(u32, numsamples * NUM_CHANNELS * (BIT_DEPTH / BYTE_SIZE));
 }
 
 fn renderSineWave(seconds: u32, file: File.Writer, freq: f64) !void {
